@@ -1,6 +1,11 @@
-from typing import Any
-
-from pymilvus import DataType, MilvusClient
+from pymilvus import (
+    AnnSearchRequest,
+    DataType,
+    Function,
+    FunctionType,
+    MilvusClient,
+    RRFRanker,
+)
 
 from src.config import MilvusConfig
 
@@ -75,7 +80,22 @@ class MilvusStore:
             field_name="text",
             datatype=DataType.VARCHAR,
             max_length=16384,
+            enable_analyzer=True,
         )
+
+        schema.add_field(
+            field_name="sparse",
+            datatype=DataType.SPARSE_FLOAT_VECTOR,
+        )
+
+        bm25_function = Function(
+            name="text_bm25",
+            input_field_names=["text"],
+            output_field_names=["sparse"],
+            function_type=FunctionType.BM25,
+        )
+
+        schema.add_function(bm25_function)
 
         schema.add_field(
             field_name="vector",
@@ -90,6 +110,13 @@ class MilvusStore:
             index_name="vector_index",
             index_type=self._config.index_type,
             metric_type=self._config.metric_type,
+        )
+
+        index_params.add_index(
+            field_name="sparse",
+            index_name="sparse_index",
+            index_type="SPARSE_INVERTED_INDEX",
+            metric_type="BM25",
         )
 
         self._client.create_collection(
@@ -180,6 +207,97 @@ class MilvusStore:
             search_params={
                 "metric_type": self._config.metric_type,
             },
+        )
+
+        return results[0]
+
+    def search_bm25(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        document_type: str | None = None,
+    ) -> list[dict]:
+        filter_expr = ""
+
+        if document_type is not None:
+            filter_expr = (
+                f'document_type == "{document_type}"'
+            )
+
+        results = self._client.search(
+            collection_name=self._config.collection_name,
+            data=[query],
+            anns_field="sparse",
+            limit=limit,
+            filter=filter_expr,
+            output_fields=[
+                "chunk_id",
+                "source_id",
+                "document_type",
+                "page_number",
+                "chunk_index",
+                "text",
+            ],
+            search_params={
+                "metric_type": "BM25",
+            },
+        )
+
+        return results[0]
+
+    def search_hybrid(
+        self,
+        query_vector: list[float],
+        query: str,
+        *,
+        limit: int = 5,
+        candidate_limit: int = 20,
+        document_type: str | None = None,
+    ) -> list[dict]:
+        filter_expr = ""
+
+        if document_type is not None:
+            filter_expr = (
+                f'document_type == "{document_type}"'
+            )
+
+        dense_request = AnnSearchRequest(
+            data=[query_vector],
+            anns_field="vector",
+            param={
+                "metric_type": self._config.metric_type,
+            },
+            limit=candidate_limit,
+            expr=filter_expr,
+        )
+
+        sparse_request = AnnSearchRequest(
+            data=[query],
+            anns_field="sparse",
+            param={
+                "metric_type": "BM25",
+            },
+            limit=candidate_limit,
+            expr=filter_expr,
+        )
+
+        results = self._client.hybrid_search(
+            collection_name=self._config.collection_name,
+            reqs=[
+                dense_request,
+                sparse_request,
+            ],
+            ranker=RRFRanker(),
+            limit=limit,
+            output_fields=[
+                "chunk_id",
+                "source_id",
+                "document_type",
+                "page_number",
+                "chunk_index",
+                "text",
+            ],
         )
 
         return results[0]

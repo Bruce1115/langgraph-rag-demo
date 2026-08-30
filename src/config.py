@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class EmbeddingConfig:
     provider: str = "bailian"
-    model: str = "text-embedding-v4"
+    model: str = "text-embedding-v3"
     dimensions: int = 1024
     batch_size: int = 10
 

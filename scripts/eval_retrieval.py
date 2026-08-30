@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from statistics import fmean
 
@@ -11,7 +12,12 @@ from src.evaluation.evaluator import (
 )
 from src.evaluation.failures import top1_failures
 from src.infrastructure.embeddings import BailianEmbedder
+from src.infrastructure.llm import create_bailian_chat_model
 from src.infrastructure.milvus import MilvusStore
+from src.retrieval.reranker import (
+    LLMReranker,
+    RerankingRetriever,
+)
 from src.retrieval.retriever import MilvusRetriever
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -96,9 +102,28 @@ def main() -> None:
         MilvusConfig(),
     )
 
-    retriever = MilvusRetriever(
+    base_retriever = MilvusRetriever(
         embedder=embedder,
         store=store,
+    )
+
+    model = create_bailian_chat_model(
+        api_key=os.environ["DASHSCOPE_API_KEY"],
+        base_url=os.environ["DASHSCOPE_BASE_URL"],
+        model=os.getenv(
+            "DASHSCOPE_CHAT_MODEL",
+            "qwen-plus",
+        ),
+    )
+
+    reranker = LLMReranker(
+        model=model,
+    )
+
+    retriever = RerankingRetriever(
+        base_retriever=base_retriever,
+        reranker=reranker,
+        candidate_limit=10,
     )
 
     results: list[RetrievalEvalResult] = []
