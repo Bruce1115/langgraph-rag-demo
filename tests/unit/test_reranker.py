@@ -31,7 +31,11 @@ def test_llm_reranker_reorders_chunks():
     )
 
     structured_model.invoke.return_value = RerankOrder(
-        ranked_indices=[2, 0, 1],
+        ranked_ids=[
+            "candidate_2",
+            "candidate_0",
+            "candidate_1",
+        ],
     )
 
     reranker = LLMReranker(model)

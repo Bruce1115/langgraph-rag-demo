@@ -19,9 +19,9 @@ class Reranker(Protocol):
 
 
 class RerankOrder(BaseModel):
-    ranked_indices: list[int] = Field(
+    ranked_ids: list[str] = Field(
         description=(
-            "Candidate indices ordered from most relevant "
+            "Candidate IDs ordered from most relevant "
             "to least relevant."
         )
     )
@@ -40,8 +40,8 @@ User question:
 Candidates:
 {candidates}
 
-Return the candidate indices ordered from most relevant
-to least relevant.
+Return the candidate IDs exactly as provided,
+ordered from most relevant to least relevant.
 """
 
 
@@ -64,9 +64,14 @@ class LLMReranker:
         if not chunks:
             return []
 
-        candidates = "\n\n".join(
-            f"[{index}]\n{chunk.text}"
+        candidate_map = {
+            f"candidate_{index}": chunk
             for index, chunk in enumerate(chunks)
+        }
+
+        candidates = "\n\n".join(
+            f"[{candidate_id}]\n{chunk.text}"
+            for candidate_id, chunk in candidate_map.items()
         )
 
         prompt = RERANK_PROMPT.format(
@@ -81,26 +86,26 @@ class LLMReranker:
                 f"Expected RerankOrder, got {type(result)}"
             )
 
-        ranked_indices: list[int] = []
-        seen: set[int] = set()
+        ranked_ids: list[str] = []
+        seen: set[str] = set()
 
-        for index in result.ranked_indices:
+        for candidate_id in result.ranked_ids:
             if (
-                0 <= index < len(chunks)
-                and index not in seen
+                candidate_id in candidate_map
+                and candidate_id not in seen
             ):
-                ranked_indices.append(index)
-                seen.add(index)
+                ranked_ids.append(candidate_id)
+                seen.add(candidate_id)
 
         # If the model omitted candidates,
         # preserve their original retrieval order.
-        for index in range(len(chunks)):
-            if index not in seen:
-                ranked_indices.append(index)
+        for candidate_id in candidate_map:
+            if candidate_id not in seen:
+                ranked_ids.append(candidate_id)
 
         return [
-            chunks[index]
-            for index in ranked_indices[:limit]
+            candidate_map[candidate_id]
+            for candidate_id in ranked_ids[:limit]
         ]
 
 class RerankingRetriever:
