@@ -1,0 +1,4 @@
+langchain-core
+langchain-text-splitters
+pypdf
+tiktoken

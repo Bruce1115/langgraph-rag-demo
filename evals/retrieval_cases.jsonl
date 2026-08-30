@@ -1,0 +1,20 @@
+{"case_id":"hyrums-law-definition","question":"What is Hyrum's Law?","relevant_pages":[36,38,474,560]}
+{"case_id":"three-pillars","question":"What are the three pillars of social interaction?","relevant_pages":[62,63]}
+{"case_id":"beyonce-rule","question":"What is the Beyoncé Rule in testing?","relevant_pages":[42,249,250]}
+{"case_id":"one-version-rule","question":"What is Google's One-Version Rule?","relevant_pages":[370,373,376,422]}
+{"case_id":"documentation-like-code","question":"Why does Google say documentation is like code?","relevant_pages":[216,217]}
+{"case_id":"bus-factor","question":"What is the bus factor in software engineering?","relevant_pages":[59]}
+{"case_id":"shifting-left","question":"What does shifting left mean in software engineering?","relevant_pages":[45]}
+{"case_id":"code-review-benefits","question":"What are the benefits of code review at Google?","relevant_pages":[198,199,200,201,202,203]}
+{"case_id":"test-state-not-interactions","question":"Why should unit tests test state rather than interactions?","relevant_pages":[266,303,304,305,306]}
+{"case_id":"large-scale-change","question":"What is a large-scale change at Google?","relevant_pages":[488]}
+{"case_id":"source-of-truth","question":"Why is a single source of truth important in version control?","relevant_pages":[362,363]}
+{"case_id":"larger-tests","question":"What are larger tests?","relevant_pages":[309,310]}
+{"case_id":"artifact-based-build","question":"What is an artifact-based build system?","relevant_pages":[408,409,410]}
+{"case_id":"effective-static-analysis","question":"What characteristics make static analysis effective?","relevant_pages":[446,447,456]}
+{"case_id":"hermetic-testing","question":"What is hermetic testing and why is it useful?","relevant_pages":[519,520,521]}
+{"case_id":"why-deprecate","question":"Why should software systems be deprecated?","relevant_pages":[339,340]}
+{"case_id":"code-search-usage","question":"How do Googlers use Code Search?","relevant_pages":[381,382,383]}
+{"case_id":"dependency-management-difficulty","question":"Why is dependency management difficult?","relevant_pages":[457,458,459,460]}
+{"case_id":"continuous-integration","question":"What does continuous integration mean at scale?","relevant_pages":[507,508]}
+{"case_id":"architecting-for-failure","question":"What does architecting for failure mean in managed compute?","relevant_pages":[551,552]}
