@@ -1,5 +1,6 @@
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.tools import BaseTool
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
@@ -14,6 +15,7 @@ from src.agent.nodes import (
 def create_graph(
     model: BaseChatModel,
     retrieval_tool: BaseTool,
+    checkpointer: BaseCheckpointSaver | None = None,
 ):
     generate_query_or_respond = create_generate_query_or_respond(
         model,
@@ -79,4 +81,4 @@ def create_graph(
         END,
     )
 
-    return builder.compile()
+    return builder.compile(checkpointer=checkpointer)
