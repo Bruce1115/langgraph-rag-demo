@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, ToolMessage
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
 
 from src.agent.graph import create_graph
 from src.config import EmbeddingConfig, MilvusConfig
@@ -62,103 +62,59 @@ def main() -> None:
         top_k=top_k,
     )
 
-    checkpointer = InMemorySaver()
+    checkpoint_db_uri = os.environ[
+        "LANGGRAPH_CHECKPOINT_DB_URI"
+    ]
 
-    graph = create_graph(
-        model,
-        retrieval_tool,
-        checkpointer=checkpointer,
-    )
+    with PostgresSaver.from_conn_string(
+        checkpoint_db_uri
+    ) as checkpointer:
+        checkpointer.setup()
 
-    config = {
-        "configurable": {
-            "thread_id": "demo-1",
-        },
-        "recursion_limit": 10,
-        "tags": [
-            "rag",
-            "cli",
-        ],
-        "metadata": {
-            "retriever": "dense",
-            "top_k": top_k,
-            "document_type": document_type,
-            "embedding_model": embedding_config.model,
-            "embedding_dimensions": embedding_config.dimensions,
-            "vector_metric": milvus_config.metric_type,
-        },
-    }
-
-    result = graph.invoke(
-        {
-            "messages": [
-                HumanMessage(content=args.question)
-            ]
-        },
-        config=config,
-    )
-
-    # for message in result["messages"]:
-    #     if isinstance(message, ToolMessage):
-    #         print("\nRetrieved passages:")
-
-    #         for rank, chunk in enumerate(
-    #             message.artifact,
-    #             start=1,
-    #         ):
-    #             print(
-    #                 f"\n{rank}. "
-    #                 f"page={chunk['page_number']} "
-    #                 f"chunk={chunk['chunk_index']} "
-    #                 f"score={chunk['score']:.4f}"
-    #             )
-
-    #             text = chunk["text"]
-
-    #             if len(text) > 500:
-    #                 text = text[:500] + "..."
-
-    #             print(text)
-
-    print("\nAnswer:")
-    print(result["messages"][-1].content)
-
-    snapshot = graph.get_state(config)
-
-    print("\nCheckpoint state:")
-    print(snapshot)
-
-
-    history = list(graph.get_state_history(config))
-
-    print("\nCheckpoint history:")
-
-    for index, snapshot in enumerate(history, start=1):
-        print(
-            f"{index}. "
-            f"step={snapshot.metadata.get('step')} "
-            f"next={snapshot.next} "
-            f"checkpoint_id="
-            f"{snapshot.config['configurable']['checkpoint_id']}"
+        graph = create_graph(
+            model,
+            retrieval_tool,
+            checkpointer=checkpointer,
         )
 
+        config = {
+            "configurable": {
+                "thread_id": "postgres-persistence-test-1",
+            },
+            "recursion_limit": 10,
+            "tags": [
+                "rag",
+                "cli",
+            ],
+            "metadata": {
+                "retriever": "dense",
+                "top_k": top_k,
+                "document_type": document_type,
+                "embedding_model": embedding_config.model,
+                "embedding_dimensions": embedding_config.dimensions,
+                "vector_metric": milvus_config.metric_type,
+            },
+        }
 
-    result2 = graph.invoke(
-        {
-            "messages": [
-                HumanMessage(
-                    content="Why is it important?"
-                )
-            ]
-        },
-        config=config,
-    )
+        result = graph.invoke(
+            {
+                "messages": [
+                    HumanMessage(content=args.question)
+                ],
+                "current_question": args.question,
+            },
+            config=config,
+        )
 
-    print("\nSecond answer:")
-    print(result2["messages"][-1].content)
+ 
+        print("\nAnswer:")
+        print(result["messages"][-1].content)
 
-    print("\nMessage count:")
-    print(len(result2["messages"]))
+        print("\nMessage count:")
+        print(len(result["messages"]))
+
+        print("\nCurrent question:")
+        print(result["current_question"])
 
 if __name__ == "__main__":
     main()

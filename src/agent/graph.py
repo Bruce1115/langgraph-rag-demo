@@ -10,6 +10,7 @@ from src.agent.nodes import (
     create_grade_documents,
     create_rewrite_question,
 )
+from src.agent.state import AgentState
 
 
 def create_graph(
@@ -26,7 +27,7 @@ def create_graph(
     rewrite_question = create_rewrite_question(model)
     generate_answer = create_generate_answer(model)
 
-    builder = StateGraph(MessagesState)  # ty: ignore[invalid-argument-type]
+    builder = StateGraph(AgentState)  # ty: ignore[invalid-argument-type]
 
     builder.add_node(
         "generate_query_or_respond",

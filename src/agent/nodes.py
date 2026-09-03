@@ -3,8 +3,9 @@ from typing import Literal
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool
-from langgraph.graph import MessagesState
 from pydantic import BaseModel, Field
+
+from src.agent.state import AgentState
 
 
 class GradeDocuments(BaseModel):
@@ -30,6 +31,19 @@ use the retrieval tool first.
 
 Answer directly only when the request is clearly unrelated
 to the book, such as simple arithmetic or casual conversation.
+
+When calling the retrieval tool, make the query self-contained.
+Resolve references using the conversation history.
+
+For example:
+
+User: What is Hyrum's Law?
+Assistant: ...
+User: Why is it important?
+
+Retrieval query:
+Why is Hyrum's Law important?
+
 """
 
 def create_generate_query_or_respond(
@@ -41,7 +55,7 @@ def create_generate_query_or_respond(
     )
 
     def generate_query_or_respond(
-        state: MessagesState,
+        state: AgentState,
     ) -> dict:
         response = model_with_tools.invoke(
             [
@@ -50,9 +64,17 @@ def create_generate_query_or_respond(
             ]
         )
 
-        return {
-            "messages": [response]
+        update = {
+            "messages": [response],
         }
+
+        if response.tool_calls:
+            query = response.tool_calls[0]["args"].get("query")
+
+            if isinstance(query, str):
+                update["current_question"] = query
+
+        return update
 
     return generate_query_or_respond
 
@@ -82,12 +104,12 @@ def create_grade_documents(
     )
 
     def grade_documents(
-        state: MessagesState,
+        state: AgentState,
     ) -> Literal[
         "generate_answer",
         "rewrite_question",
     ]:
-        question = state["messages"][0].content
+        question = state["current_question"]  # ty: ignore[invalid-key]
         context = state["messages"][-1].content
 
         prompt = GRADE_PROMPT.format(
@@ -124,9 +146,9 @@ def create_rewrite_question(
 ):
 
     def rewrite_question(
-        state: MessagesState,
+        state: AgentState,
     ) -> dict:
-        question = state["messages"][0].content
+        question = state["current_question"]  # ty: ignore[invalid-key]
 
         prompt = REWRITE_PROMPT.format(
             question=question,
@@ -137,7 +159,8 @@ def create_rewrite_question(
         return {
             "messages": [
                 HumanMessage(content=response.content)
-            ]
+            ],
+            "current_question": response.content,
         }
 
     return rewrite_question
@@ -173,9 +196,9 @@ def create_generate_answer(
 ):
 
     def generate_answer(
-        state: MessagesState,
+        state: AgentState,
     ) -> dict:
-        question = state["messages"][0].content
+        question = state["current_question"]  # ty: ignore[invalid-key]
         context = state["messages"][-1].content
 
         prompt = GENERATE_PROMPT.format(
