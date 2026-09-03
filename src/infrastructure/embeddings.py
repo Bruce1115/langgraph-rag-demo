@@ -2,6 +2,7 @@ import os
 from typing import Protocol
 
 from langchain_openai import OpenAIEmbeddings
+from langsmith import traceable
 
 from src.config import EmbeddingConfig
 
@@ -43,5 +44,16 @@ class BailianEmbedder:
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return self._client.embed_documents(texts)
 
+
+    @traceable(
+        name="embedding_query",
+        run_type="embedding",
+        process_inputs=lambda inputs: {
+            "text": inputs.get("text", ""),
+        },
+        process_outputs=lambda output: {
+            "dimensions": len(output),
+        },
+    )
     def embed_query(self, text: str) -> list[float]:
         return self._client.embed_query(text)

@@ -1,0 +1,60 @@
+LangGraph Learning Roadmap
+
+1. RAG basics                         ✅
+2. Retrieval / tools                  ✅
+3. Agentic RAG graph                  ✅
+4. Conditional routing               ✅
+5. Query rewrite                      ✅
+6. Evaluation                         ✅
+7. LangSmith tracing / observability  ✅
+
+8. Persistence / Checkpointing        ⬅ NEXT
+   ├─ checkpointer
+   ├─ thread_id
+   ├─ state snapshots
+   └─ resume execution
+
+9. Human-in-the-loop                  ⬜
+   ├─ interrupt()
+   ├─ Command(resume=...)
+   └─ approval workflows
+
+10. Streaming                         ⬜
+    ├─ stream()
+    ├─ stream_mode
+    ├─ node updates
+    └─ token streaming
+
+11. Memory / State design             ⬜
+    ├─ MessagesState
+    ├─ custom State
+    ├─ reducers
+    └─ long-term memory concepts
+
+12. Subgraphs / composition           ⬜
+    ├─ graph inside graph
+    ├─ reusable workflows
+    └─ state boundaries
+
+13. Advanced execution                ⬜
+    ├─ retries
+    ├─ parallel branches
+    ├─ Send / dynamic fan-out
+    └─ recursion / loops
+
+14. API / Service Layer               ⬜
+    ├─ FastAPI
+    ├─ expose LangGraph as HTTP API
+    ├─ thread_id through API requests
+    ├─ streaming responses
+    ├─ request / response models
+    └─ error handling
+
+15. CI / Regression                   ⬜
+    ├─ unit tests in CI
+    ├─ integration tests
+    ├─ retrieval regression
+    ├─ generation evaluation
+    └─ quality gates
+
+16. Deployment concepts               ⬜ optional

@@ -36,22 +36,29 @@ def main() -> None:
         ),
     )
 
+    embedding_config = EmbeddingConfig()
+    milvus_config = MilvusConfig()
+
+    top_k = 5
+    document_type = "content"
+
     embedder = BailianEmbedder(
-        EmbeddingConfig()
+        embedding_config
     )
 
     store = MilvusStore(
-        MilvusConfig()
+        milvus_config
     )
 
     retriever = MilvusRetriever(
-        embedder=embedder,
-        store=store,
+        embedder=embedder,  # ty: ignore[invalid-argument-type]
+        store=store,  # ty: ignore[invalid-argument-type]
+        document_type=document_type,
     )
 
     retrieval_tool = create_retrieval_tool(
         retriever,
-        top_k=5,
+        top_k=top_k,
     )
 
     graph = create_graph(
@@ -67,6 +74,18 @@ def main() -> None:
         },
         config={
             "recursion_limit": 10,
+            "tags": [
+                "rag",
+                "cli",
+            ],
+            "metadata": {
+                "retriever": "dense",
+                "top_k": top_k,
+                "document_type": document_type,
+                "embedding_model": embedding_config.model,
+                "embedding_dimensions": embedding_config.dimensions,
+                "vector_metric": milvus_config.metric_type,
+            },
         },
     )
 

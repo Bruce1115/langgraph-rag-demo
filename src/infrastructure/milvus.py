@@ -1,3 +1,4 @@
+from langsmith import traceable
 from pymilvus import (
     AnnSearchRequest,
     DataType,
@@ -176,6 +177,20 @@ class MilvusStore:
                 collection_name=self._config.collection_name
             )
 
+    @traceable(
+        name="milvus_search",
+        run_type="retriever",
+        process_inputs=lambda inputs: {
+            "vector_dimensions": len(
+                inputs.get("query_vector", [])
+            ),
+            "limit": inputs.get("limit", 5),
+            "document_type": inputs.get("document_type"),
+        },
+        process_outputs=lambda output: {
+            "result_count": len(output),
+        },
+    )
     def search(
         self,
         query_vector: list[float],
