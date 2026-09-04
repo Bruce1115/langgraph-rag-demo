@@ -1,8 +1,9 @@
 from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
+from langgraph.types import Command, interrupt
 from pydantic import BaseModel, Field
 
 from src.agent.state import AgentState
@@ -109,7 +110,7 @@ def create_grade_documents(
         "generate_answer",
         "rewrite_question",
     ]:
-        question = state["current_question"]  # ty: ignore[invalid-key]
+        question = state["current_question"]
         context = state["messages"][-1].content
 
         prompt = GRADE_PROMPT.format(
@@ -148,7 +149,7 @@ def create_rewrite_question(
     def rewrite_question(
         state: AgentState,
     ) -> dict:
-        question = state["current_question"]  # ty: ignore[invalid-key]
+        question = state["current_question"]
 
         prompt = REWRITE_PROMPT.format(
             question=question,
@@ -198,7 +199,7 @@ def create_generate_answer(
     def generate_answer(
         state: AgentState,
     ) -> dict:
-        question = state["current_question"]  # ty: ignore[invalid-key]
+        question = state["current_question"]
         context = state["messages"][-1].content
 
         prompt = GENERATE_PROMPT.format(
@@ -213,3 +214,75 @@ def create_generate_answer(
         }
 
     return generate_answer
+
+def review_tool_call(
+    state: AgentState,
+) -> Command[Literal["retrieve", "cancel_tool_call"]]:
+    message = state["messages"][-1]
+
+    if not isinstance(message, AIMessage):
+        raise TypeError("Expected the last message to be AIMessage")
+
+    if not message.tool_calls:
+        raise ValueError("Expected a tool call")
+
+    tool_call = message.tool_calls[0]
+
+    review = interrupt(
+        {
+            "question": "Review this tool call",
+            "tool": tool_call["name"],
+            "args": tool_call["args"],
+        }
+    )
+
+    action = review["action"]
+
+    if action == "reject":
+        return Command(  # ty: ignore[invalid-return-type]
+            update={
+                "messages": [
+                    ToolMessage(
+                        content="Tool call rejected by human.",
+                        tool_call_id=tool_call["id"],
+                        name=tool_call["name"],
+                    )
+                ]
+            },
+            goto="cancel_tool_call",
+        )
+
+    if action == "edit":
+        edited_tool_call = {
+            **tool_call,
+            "args": review["args"],
+        }
+
+        updated_message = message.model_copy(
+            update={
+                "tool_calls": [edited_tool_call],
+            }
+        )
+
+        return Command(  # ty: ignore[invalid-return-type]
+            update={
+                "messages": [updated_message],
+                "current_question": review["args"]["query"],
+            },
+            goto="retrieve",
+        )
+
+    return Command(  # ty: ignore[invalid-return-type]
+        goto="retrieve",
+    )
+
+def cancel_tool_call(
+    state: AgentState,
+) -> dict:
+    return {
+        "messages": [
+            AIMessage(
+                content="The tool call was rejected by the human reviewer."
+            )
+        ]
+    }

@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.types import Command
 
 from src.agent.graph import create_graph
 from src.config import EmbeddingConfig, MilvusConfig
@@ -79,7 +80,7 @@ def main() -> None:
 
         config = {
             "configurable": {
-                "thread_id": "postgres-persistence-test-1",
+                "thread_id": "hitl-rag-test-6",
             },
             "recursion_limit": 10,
             "tags": [
@@ -106,15 +107,57 @@ def main() -> None:
             config=config,
         )
 
+        while "__interrupt__" in result:
+            interrupt_value = result["__interrupt__"][0].value
+
+            print("\nTool call review:")
+            print(f"Tool: {interrupt_value['tool']}")
+            print(f"Args: {interrupt_value['args']}")
+
+            action = input(
+                "\nApprove, reject, or edit? [a/r/e]: "
+            ).strip().lower()
+
+            if action == "a":
+                resume_value = {
+                    "action": "approve",
+                }
+
+            elif action == "r":
+                resume_value = {
+                    "action": "reject",
+                }
+
+            else:
+                original_args = interrupt_value["args"]
+
+                edited_query = input(
+                    "Edited query: "
+                ).strip()
+
+                resume_value = {
+                    "action": "edit",
+                    "args": {
+                        **original_args,
+                        "query": edited_query,
+                    },
+                }
+
+            result = graph.invoke(
+                Command(resume=resume_value),
+                config=config,
+            )
+
+        print("\nCurrent question:")
+        print(result["current_question"])
  
         print("\nAnswer:")
         print(result["messages"][-1].content)
 
-        print("\nMessage count:")
-        print(len(result["messages"]))
+        # print("\nMessage count:")
+        # print(len(result["messages"]))
 
-        print("\nCurrent question:")
-        print(result["current_question"])
+
 
 if __name__ == "__main__":
     main()

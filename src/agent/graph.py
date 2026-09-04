@@ -5,10 +5,12 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from src.agent.nodes import (
+    cancel_tool_call,
     create_generate_answer,
     create_generate_query_or_respond,
     create_grade_documents,
     create_rewrite_question,
+    review_tool_call,
 )
 from src.agent.state import AgentState
 
@@ -49,6 +51,16 @@ def create_graph(
         generate_answer,
     )
 
+    builder.add_node(
+        "review_tool_call",
+        review_tool_call,
+    )
+
+    builder.add_node(
+        "cancel_tool_call",
+        cancel_tool_call,
+    )
+
     builder.add_edge(
         START,
         "generate_query_or_respond",
@@ -58,9 +70,14 @@ def create_graph(
         "generate_query_or_respond",
         tools_condition,
         {
-            "tools": "retrieve",
+            "tools": "review_tool_call",
             END: END,
         },
+    )
+
+    builder.add_edge(
+        "cancel_tool_call",
+        END,
     )
 
     builder.add_conditional_edges(
