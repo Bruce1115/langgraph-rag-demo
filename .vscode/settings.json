@@ -5,6 +5,9 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
 
+    "ty.diagnosticMode": "off",
+    "ty.disableLanguageServices": true,
+
     "files.exclude": {
         "**/__pycache__": true,
         "**/*.pyc": true
