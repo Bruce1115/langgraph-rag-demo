@@ -47,6 +47,7 @@ Why is Hyrum's Law important?
 
 """
 
+
 def create_generate_query_or_respond(
     model: BaseChatModel,
     retrieval_tool: BaseTool,
@@ -54,14 +55,49 @@ def create_generate_query_or_respond(
     model_with_tools = model.bind_tools(
         [retrieval_tool]
     )
+    
 
     def generate_query_or_respond(
         state: AgentState,
     ) -> dict:
+        
+        summary = state.get("summary", "")
+
+        routing_prompt = f"""
+        {ROUTING_PROMPT}
+
+        Conversation summary:
+        {summary}
+
+        Current working question:
+        {state["current_question"]}
+
+        Use the current working question as the request you need to handle.
+        It may have been rewritten by an earlier retrieval attempt.
+
+        When calling the retrieval tool, make the query self-contained.
+        Resolve references using the conversation history and summary.
+        """
+        
+        from langchain_core.messages import trim_messages
+
+        trimmed_messages = trim_messages(
+            state["messages"],
+            max_tokens=2000,
+            strategy="last",
+            token_counter="approximate",
+            start_on="human",
+        )
+
+        print(
+            f"Messages: full={len(state['messages'])}, "
+            f"trimmed={len(trimmed_messages)}"
+        )
+
         response = model_with_tools.invoke(
             [
-                SystemMessage(content=ROUTING_PROMPT),
-                *state["messages"],
+                SystemMessage(content=routing_prompt),
+                *trimmed_messages,
             ]
         )
 
@@ -157,10 +193,10 @@ def create_rewrite_question(
 
         response = model.invoke(prompt)
 
+        print("\n>>> rewritten question:")
+        print(response.content)
+
         return {
-            "messages": [
-                HumanMessage(content=response.content)
-            ],
             "current_question": response.content,
         }
 
@@ -286,3 +322,86 @@ def cancel_tool_call(
             )
         ]
     }
+
+SUMMARY_PROMPT = """
+Update the conversation summary.
+
+Existing summary:
+{summary}
+
+New conversation to incorporate:
+{conversation}
+
+Preserve important facts, decisions, unresolved questions,
+user intentions, and relevant context.
+
+Return only the updated concise summary.
+"""
+
+
+def create_summarize_history(
+    model: BaseChatModel,
+):
+    def summarize_history(
+        state: AgentState,
+    ) -> dict:
+        messages = state["messages"]
+
+        # Keep the most recent 6 messages verbatim.
+        summarize_until = max(0, len(messages) - 6)
+
+        already_summarized = state.get(
+            "summarized_message_count",
+            0,
+        )
+
+        if summarize_until <= already_summarized:
+            return {}
+
+        new_messages = messages[
+            already_summarized:summarize_until
+        ]
+
+        conversation_messages = [
+            message
+            for message in new_messages
+            if (
+                isinstance(message, HumanMessage)
+                or (
+                    isinstance(message, AIMessage)
+                    and message.content
+                    and not message.tool_calls
+                )
+            )
+        ]
+
+        conversation = "\n".join(
+            f"{message.type}: {message.content}"
+            for message in conversation_messages
+        )
+
+        prompt = SUMMARY_PROMPT.format(
+            summary=state.get("summary", ""),
+            conversation=conversation,
+        )
+
+        response = model.invoke(prompt)
+
+        return {
+            "summary": response.content,
+            "summarized_message_count": summarize_until,
+        }
+
+    return summarize_history
+
+
+def should_summarize(
+    state: AgentState,
+) -> Literal[
+    "summarize_history",
+    "generate_query_or_respond",
+]:
+    if len(state["messages"]) > 10:
+        return "summarize_history"
+
+    return "generate_query_or_respond"

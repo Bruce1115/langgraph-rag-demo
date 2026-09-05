@@ -1,7 +1,7 @@
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from src.agent.nodes import (
@@ -10,7 +10,9 @@ from src.agent.nodes import (
     create_generate_query_or_respond,
     create_grade_documents,
     create_rewrite_question,
+    create_summarize_history,
     review_tool_call,
+    should_summarize,
 )
 from src.agent.state import AgentState
 
@@ -28,8 +30,9 @@ def create_graph(
     grade_documents = create_grade_documents(model)
     rewrite_question = create_rewrite_question(model)
     generate_answer = create_generate_answer(model)
+    summarize_history = create_summarize_history(model)
 
-    builder = StateGraph(AgentState)  # ty: ignore[invalid-argument-type]
+    builder = StateGraph(AgentState)  
 
     builder.add_node(
         "generate_query_or_respond",
@@ -61,8 +64,22 @@ def create_graph(
         cancel_tool_call,
     )
 
-    builder.add_edge(
+    builder.add_node(
+        "summarize_history",
+        summarize_history,
+    )
+
+    builder.add_conditional_edges(
         START,
+        should_summarize,
+        {
+            "summarize_history": "summarize_history",
+            "generate_query_or_respond": "generate_query_or_respond",
+        },
+    )
+
+    builder.add_edge(
+        "summarize_history",
         "generate_query_or_respond",
     )
 

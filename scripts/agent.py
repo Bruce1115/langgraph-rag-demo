@@ -2,7 +2,7 @@ import argparse
 import os
 
 from dotenv import load_dotenv
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.types import Command
 
@@ -78,9 +78,12 @@ def main() -> None:
             checkpointer=checkpointer,
         )
 
+        from datetime import datetime, timezone
+        thread_id = datetime.now(timezone.utc).strftime("test-%Y%m%d-%H%M%S")
+
         config = {
             "configurable": {
-                "thread_id": "hitl-rag-test-6",
+                "thread_id": "summary-test-2",
             },
             "recursion_limit": 10,
             "tags": [
@@ -148,14 +151,15 @@ def main() -> None:
                 config=config,
             )
 
-        print("\nCurrent question:")
-        print(result["current_question"])
- 
-        print("\nAnswer:")
-        print(result["messages"][-1].content)
 
-        # print("\nMessage count:")
-        # print(len(result["messages"]))
+        print("\nMessage count:")
+        print(len(result["messages"]))
+
+        print("\nSummary:")
+        print(result.get("summary", ""))
+
+        print("\nSummarized message count:")
+        print(result.get("summarized_message_count", 0))
 
 
 
